@@ -1,12 +1,15 @@
 import boto3
 import pprint
 import json
+import botocore
 
 Session_Local = boto3.session.Session(profile_name='nnatri+testenv-unicorngymrole', region_name="us-east-1")
 bedrock_agent_runtime_client = Session_Local.client('bedrock-agent-runtime')
+agent_id = "WCORHJLNTQ"
+agentAliasId = "ODRJYJEDVX"
 
 def getAnswers(questions):
-    knowledgeBaseResponse  = bedrockClient.retrieve_and_generate(
+    knowledgeBaseResponse  = bedrock_agent_runtime_client.retrieve_and_generate(
         input={'text': questions},
         retrieveAndGenerateConfiguration={
             'knowledgeBaseConfiguration': {
@@ -17,35 +20,22 @@ def getAnswers(questions):
         })
     return knowledgeBaseResponse
 
-# questions = "What is my HIV results?"
-# response = getAnswers(questions)
-# print(response['output']['text'])
-
-
-
-
-
-try:
+def get_agent_response(question: str, session_id: str) -> str:
+    
     agent_response = bedrock_agent_runtime_client.invoke_agent(
-        inputText="What is my HIV results",
-        agentId="WCORHJLNTQ",
-        agentAliasId="ODRJYJEDVX",
-        sessionId="12345",
+        inputText=question,
+        agentId=agent_id,
+        agentAliasId=agentAliasId,
+        sessionId=session_id,
     )
-    pprint.pprint(agent_response)
-    if 'completion' not in agent_response:
-        raise ValueError("Missing 'completion' in agent response")
-    for event in agent_response['completion']:
-        chunk = event.get('chunk')
-        print('chunk: ', chunk)
-        if chunk:
-            decoded_bytes = chunk.get("bytes").decode()
-            print('bytes: ', decoded_bytes)
-            if decoded_bytes.strip():
-                message = json.loads(decoded_bytes)
-                if message['type'] == "content_block_delta":
-                    print(message['delta']['text']) or ""
-                elif message['type'] == "message_stop":
-                    print("\n")
-except Exception as e:
-    print(e)
+    responses = []
+    
+    try:
+        for event in agent_response['completion']:
+            chunk = event.get('chunk')
+            if chunk:
+                responses.append(chunk.get("bytes").decode())
+    except botocore.exceptions.EventStreamError as e:
+        return "Throttling Error: Please stop asking me so many questions"
+
+    return "\n".join(responses)

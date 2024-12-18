@@ -1,22 +1,17 @@
 import streamlit as st
 import boto3
-import random
-import time
+import uuid
 
-from util import get_answers
-
-s3 = boto3.client('s3')
+from util import get_agent_response
 
 st.title("HealthCare.AI")
-# uploaded_file = st.file_uploader("Upload your Medical Report")
 
-# if uploaded_file is not None:
-#     s3.upload_fileobj(uploaded_file, 'uploaded-documents-unicorn-gym-16122024', 'uploaded')
-#     st.success("File uploaded successfully!")
+# Set Unique Session ID
+session_id = uuid.uuid4().__str__()
 
 # Streamed response emulator
 def response_generator(prompt: str):
-    response=get_answers(prompt)
+    response=get_agent_response(prompt, session_id)
     return response
 
 # Initialize chat history
@@ -38,8 +33,7 @@ if prompt := st.chat_input("What is up?"):
 
     # Display assistant response in chat message container
     with st.chat_message("assistant"):
-        response, source_doc = response_generator(prompt)
-        full_response = f"{response}\n\n{source_doc}"
-        response = st.write(full_response)
+        response = get_agent_response(prompt, session_id)
+        st.write(response)
     # Add assistant response to chat history
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
+    st.session_state.messages.append({"role": "assistant", "content": response})
